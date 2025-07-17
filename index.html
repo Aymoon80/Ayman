@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matrix IPTV Stream Player</title>
+    <link href="https://vjs.zencdn.net/7.20.3/video-js.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0f172a;
+            --secondary-color: #1e293b;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --border-color: #374151;
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --shadow-medium: rgba(0, 0, 0, 0.25);
+            --shadow-heavy: rgba(0, 0, 0, 0.5);
+            --glass-bg: rgba(15, 23, 42, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: var(--text-primary);
+            overflow: hidden;
+            font-weight: 400;
+        }
+
+        #matrixCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            height: 100vh;
+            gap: 1px;
+        }
+
+        .sidebar {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid var(--glass-border);
+            padding: 24px;
+            overflow-y: auto;
+            box-shadow: -4px 0 20px var(--shadow-heavy);
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: var(--secondary-color);
+            border-radius: 3px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 3px;
+        }
+
+        .player-container {
+            position: relative;
+            background: var(--primary-color);
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .video-js {
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+            align-items: center;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 16px 24px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px var(--shadow-heavy);
+            flex-wrap: wrap;
+            max-width: 90%;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: var(--secondary-color);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn:hover {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--shadow-medium);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            border-color: var(--success-color);
+        }
+
+        .btn-success:hover {
+            background: #059669;
+            border-color: #059669;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            border-color: #dc2626;
+        }
+
+        .url-input {
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--secondary-color);
+            color: var(--text-primary);
+            width: 220px;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .url-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .volume-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-primary);
+            background: var(--secondary-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .volume-slider {
+            width: 80px;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--border-color);
+            outline: none;
+            appearance: none;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px var(--shadow-medium);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px var(--shadow-medium);
+        }
+
+        .sidebar-section {
+            margin-bottom: 32px;
+        }
+
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-subtitle {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+        }
+
+        .channel-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .channel-item {
+            padding: 12px 16px;
+            margin: 6px 0;
+            background: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--text-primary);
+            font-weight: 400;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .channel-item:hover {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px var(--shadow-medium);
+        }
+
+        .channel-item:active {
+            transform: translateX(2px);
+        }
+
+        .upload-section {
+            background: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .file-input {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+
+        .file-input-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            font-weight: 500;
+            width: 100%;
+        }
+
+        .file-input-button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .upload-description {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .search-box {
+            margin: 20px 0;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--secondary-color);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .quality-selector {
+            position: relative;
+        }
+
+        .quality-btn {
+            padding: 10px 16px;
+            background: var(--secondary-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .quality-btn:hover {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .quality-menu {
+            position: absolute;
+            bottom: 110%;
+            right: 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 8px 0;
+            display: none;
+            z-index: 100;
+            min-width: 120px;
+            box-shadow: 0 8px 32px var(--shadow-heavy);
+        }
+
+        .quality-menu.visible {
+            display: block;
+            animation: fadeInUp 0.2s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .quality-option {
+            padding: 10px 16px;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            font-weight: 400;
+        }
+
+        .quality-option:hover {
+            background: var(--secondary-color);
+        }
+
+        .quality-option.active {
+            background: var(--accent-color);
+            color: white;
+            font-weight: 500;
+        }
+
+        .remote-control {
+            background: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .load-all-btn {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 32px 48px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            z-index: 100;
+            display: none;
+            color: var(--text-primary);
+            box-shadow: 0 16px 48px var(--shadow-heavy);
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .autoplay-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 32px 48px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            text-align: center;
+            z-index: 101;
+            display: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 16px 48px var(--shadow-heavy);
+        }
+
+        .autoplay-message:hover {
+            background: var(--accent-color);
+            transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        .material-icons {
+            font-size: 18px;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .sidebar {
+                max-height: 300px;
+                padding: 16px;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 12px 16px;
+                bottom: 12px;
+            }
+            
+            .url-input {
+                width: 100%;
+                min-width: 200px;
+            }
+        }
+
+        /* Enhanced visual effects */
+        .glow {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrixCanvas"></canvas>
+    <div class="container">
+        <div class="player-container" id="playerContainer">
+            <video id="myVideo" class="video-js"></video>
+            <div class="controls">
+                <input type="text" id="urlInput" class="url-input" placeholder="Enter stream URL">
+                <button id="playUrlBtn" class="btn btn-primary">
+                    <span class="material-icons">play_arrow</span>
+                    Play URL
+                </button>
+                <button id="playBtn" class="btn btn-success">
+                    <span class="material-icons">play_arrow</span>
+                    Play
+                </button>
+                <button id="pauseBtn" class="btn">
+                    <span class="material-icons">pause</span>
+                    Pause
+                </button>
+                <button id="stopBtn" class="btn btn-danger">
+                    <span class="material-icons">stop</span>
+                    Stop
+                </button>
+                <div class="quality-selector">
+                    <button id="qualityBtn" class="quality-btn">
+                        <span class="material-icons">high_quality</span>
+                        Quality
+                    </button>
+                    <div id="qualityMenu" class="quality-menu">
+                        <div class="quality-option" data-quality="auto">Auto</div>
+                        <!-- Quality options added dynamically -->
+                    </div>
+                </div>
+                <button id="fullscreenBtn" class="btn">
+                    <span class="material-icons">fullscreen</span>
+                </button>
+                <div class="volume-container">
+                    <button id="muteBtn" class="btn">
+                        <span class="material-icons">volume_up</span>
+                    </button>
+                    <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.1" value="1">
+                    <span id="volumeValue">100%</span>
+                </div>
+            </div>
+            <div class="autoplay-message" id="autoplayMessage">
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">
+                    <span class="material-icons" style="font-size: 24px;">play_circle</span>
+                </div>
+                Click Here To Play...
+            </div>
+        </div>
+        <div class="sidebar">
+            <div class="sidebar-section upload-section">
+                <h2 class="sidebar-title">
+                    <span class="material-icons">video_library</span>
+                    IPTV Channels
+                </h2>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" class="file-input" accept=".txt,.m3u,.m3u8">
+                    <button class="file-input-button">
+                        <span class="material-icons">upload_file</span>
+                        Choose Playlist File
+                    </button>
+                </div>
+                <p class="upload-description">Upload .txt or .m3u8 playlist</p>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search channels...">
+            </div>
+            
+            <div class="sidebar-section remote-control">
+                <h3 class="sidebar-subtitle">
+                    <span class="material-icons">cloud_download</span>
+                    Load Channel Lists
+                </h3>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px; text-align: center;">
+                    (Not all channels work)
+                </p>
+                <button id="loadAllBtn" class="btn btn-primary load-all-btn">
+                    <span class="material-icons">playlist_play</span>
+                    Load Channel List 1
+                </button>
+                <button id="loadAllBtn2" class="btn btn-danger load-all-btn">
+                    <span class="material-icons">playlist_add</span>
+                    Load Channel List 2
+                </button>
+            </div>
+            
+            <ul class="channel-list" id="channelList"></ul>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <div>Loading channels...</div>
+    </div>
+
+    <script src="https://vjs.zencdn.net/7.20.3/video.min.js"></script>
+    <script src="https://unpkg.com/videojs-contrib-quality-levels@2.0.4/dist/videojs-contrib-quality-levels.js"></script>
+    <script src="https://unpkg.com/videojs-http-source-selector@1.1.6/dist/videojs-http-source-selector.js"></script>
+    <script>
+        // Matrix rain animation
+        class MatrixRain {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                
+                // Set canvas size to window size
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                // Characters to display - Matrix style katakana
+                this.chars = "アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン";
+                
+                // Stream configuration
+                this.streams = [];
+                this.streamCount = Math.floor(this.canvas.width / 20); // Number of streams based on screen width
+                
+                // Initialize streams
+                this.init();
+                
+                // Start animation
+                this.animate();
+                
+                // Handle window resize
+                window.addEventListener('resize', () => this.resize());
+            }
+            
+            init() {
+                // Create streams
+                for (let i = 0; i < this.streamCount; i++) {
+                    // Random starting position and speed for each stream
+                    this.streams.push({
+                        x: Math.floor(Math.random() * this.canvas.width),
+                        y: Math.floor(Math.random() * this.canvas.height),
+                        speed: Math.random() * 2 + 1,
+                        length: Math.floor(Math.random() * 20) + 10,
+                        chars: []
+                    });
+                    
+                    // Initialize characters in each stream
+                    for (let j = 0; j < this.streams[i].length; j++) {
+                        this.streams[i].chars.push({
+                            char: this.chars.charAt(Math.floor(Math.random() * this.chars.length)),
+                            opacity: Math.random()
+                        });
+                    }
+                }
+            }
+            
+            animate() {
+                // Clear canvas with semi-transparent black for trail effect
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Update and draw each stream
+                for (let i = 0; i < this.streams.length; i++) {
+                    const stream = this.streams[i];
+                    
+                    // Update positions
+                    stream.y += stream.speed;
+                    if (stream.y > this.canvas.height) {
+                        stream.y = 0;
+                        stream.x = Math.floor(Math.random() * this.canvas.width);
+                    }
+                    
+                    // Draw characters
+                    for (let j = 0; j < stream.chars.length; j++) {
+                        const char = stream.chars[j];
+                        
+                        // Randomly update characters
+                        if (Math.random() > 0.9) {
+                            char.char = this.chars.charAt(Math.floor(Math.random() * this.chars.length));
+                            char.opacity = Math.random();
+                        }
+                        
+                        // Draw character
+                        this.ctx.fillStyle = `rgba(0, 255, 0, ${char.opacity})`;
+                        this.ctx.font = '12px monospace';
+                        this.ctx.fillText(char.char, stream.x, stream.y - j * 15);
+                    }
+                }
+                
+                requestAnimationFrame(() => this.animate());
+            }
+            
+            resize() {
+                // Update canvas size
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                
+                // Reinitialize streams
+                this.streams = [];
+                this.streamCount = Math.floor(this.canvas.width / 20);
+                this.init();
+            }
+        }
+
+        // Main player code
+        const player = videojs('myVideo', {
+            controls: false,
+            autoplay: true,
+            preload: 'auto'
+        });
+
+        // Add quality levels plugin
+        player.qualityLevels();
+
+        // Unmute after initialization
+        player.ready(() => {
+            // Play immediately
+            player.play().catch(error => {
+                console.log('Autoplay prevented, will try on user interaction');
+                document.getElementById('autoplayMessage').style.display = 'block';
+            });
+            
+            // Set initial volume
+            player.volume(1);
+        });
+
+        let channels = [];
+        let filteredChannels = [];
+        let currentStreamUrl = '';
+
+        // Initialize with Rotana Aflam channel
+        const aflamChannel = {
+            name: "Rotana Aflam",
+            url: "https://d35j504z0x2vu2.cloudfront.net/v1/master/0bc8e8376bd8417a1b6761138aa41c26c7309312/rotana-aflam-plus/master.m3u8"
+        };
+
+        // Start Matrix animation when page loads
+        window.onload = function() {
+            new MatrixRain('matrixCanvas');
+            
+            // Add aflam channel to the list
+            channels.push(aflamChannel);
+            
+            // Load and play with proper autoplay handling
+            playChannel(aflamChannel.url);
+            
+            // Set quality if available
+            setTimeout(() => {
+                if (player.qualityLevels && player.qualityLevels().length > 0) {
+                    player.qualityLevels().auto();
+                }
+            }, 3000); // Wait for stream to load
+        };
+
+        // File upload handler with enhanced UI
+        document.querySelector('.file-input-button').addEventListener('click', function() {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                parsePlaylist(content);
+                filterChannels();
+                populateChannelList();
+            };
+            
+            if (file.name.endsWith('.txt')) {
+                reader.readAsText(file);
+            } else if (file.name.endsWith('.m3u') || file.name.endsWith('.m3u8')) {
+                reader.readAsText(file);
+            }
+        });
+
+        // Playlist parser
+        function parsePlaylist(content) {
+            if (content.startsWith('#EXTM3U')) {
+                // M3U format parsing
+                const lines = content.split('\n');
+                channels = [aflamChannel]; // Start with aflam channel
+                
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line.startsWith('#EXTINF')) {
+                        // Extract channel name
+                        const nameMatch = line.match(/tvg-name="(.*?)"/);
+                        let channelName = nameMatch ? nameMatch[1] : '';
+                        
+                        // Fallback to comma-separated name
+                        if (!channelName) {
+                            const parts = line.split(',');
+                            if (parts.length > 1) {
+                                channelName = parts.slice(1).join(',').trim();
+                            }
+                        }
+                        
+                        // Get URL from next line
+                        if (i + 1 < lines.length) {
+                            const url = lines[i + 1].trim();
+                            if (url && (url.startsWith('http') || url.startsWith('https'))) {
+                                channels.push({ name: channelName || `Channel ${channels.length + 1}`, url });
+                                i++; // Skip URL line
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Simple text format (one URL per line)
+                channels = [aflamChannel]; // Start with aflam channel
+                channels = channels.concat(
+                    content.split('\n')
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0)
+                        .map((url, index) => ({ 
+                            name: `Channel ${index + 2}`, // +2 because aflam is first
+                            url 
+                        }))
+                );
+            }
+        }
+
+        // Filter channels based on search text
+        function filterChannels() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (!searchText) {
+                // No search text, show all channels
+                filteredChannels = [...channels];
+                return;
+            }
+            
+            // Filter channels by name
+            filteredChannels = channels.filter(channel => 
+                channel.name.toLowerCase().includes(searchText)
+            );
+        }
+
+        // Populate channel list
+        function populateChannelList() {
+            const list = document.getElementById('channelList');
+            list.innerHTML = '';
+            
+            // Use filtered channels if available
+            const displayChannels = filteredChannels.length > 0 ? filteredChannels : channels;
+            
+            displayChannels.forEach((channel) => {
+                const li = document.createElement('li');
+                li.className = 'channel-item';
+                li.textContent = channel.name;
+                li.onclick = () => playChannel(channel.url);
+                list.appendChild(li);
+            });
+        }
+
+        // Play channel
+        function playChannel(url) {
+            // Hide autoplay message if visible
+            document.getElementById('autoplayMessage').style.display = 'none';
+            
+            // Store current URL
+            currentStreamUrl = url;
+            
+            // Clear previous quality options
+            const qualityMenu = document.getElementById('qualityMenu');
+            qualityMenu.innerHTML = '<div class="quality-option" data-quality="auto">Auto</div>';
+            qualityMenu.classList.remove('visible');
+            
+            // Play the stream
+            player.src({ src: url, type: url.endsWith('.m3u8') ? 'application/x-mpegURL' : 'video/mp4' });
+            
+            // Use the 'loadedmetadata' event to ensure playback starts after initialization
+            player.ready(() => {
+                player.play().catch(error => {
+                    console.log('Autoplay prevented, will try on user interaction');
+                    document.getElementById('autoplayMessage').style.display = 'block';
+                });
+            });
+            
+            // If it's an HLS stream, enable quality selection after a delay
+            if (url.endsWith('.m3u8')) {
+                // Reset quality levels
+                if (player.qualityLevels) {
+                    player.qualityLevels().length = 0;
+                }
+                
+                // Wait for stream to load and detect quality levels
+                setTimeout(() => {
+                    if (player.qualityLevels && player.qualityLevels().length > 1) {
+                        setupQualityMenu();
+                    }
+                }, 3000);
+            }
+        }
+
+        // Setup quality menu based on available quality levels
+        function setupQualityMenu() {
+            const qualityMenu = document.getElementById('qualityMenu');
+            const qualityLevels = player.qualityLevels();
+            
+            // Don't add options if only one quality level
+            if (qualityLevels.length <= 1) return;
+            
+            // Clear existing options except "Auto"
+            qualityMenu.innerHTML = '<div class="quality-option" data-quality="auto">Auto</div>';
+            
+            // Add quality options
+            for (let i = 0; i < qualityLevels.length; i++) {
+                const quality = qualityLevels[i];
+                const option = document.createElement('div');
+                option.className = 'quality-option';
+                option.textContent = `${quality.height}p`;
+                option.setAttribute('data-quality', i);
+                qualityMenu.appendChild(option);
+            }
+            
+            // Show quality menu when button is clicked
+            document.getElementById('qualityBtn').addEventListener('click', function(e) {
+                e.stopPropagation();
+                qualityMenu.classList.toggle('visible');
+            });
+            
+            // Handle quality selection
+            document.querySelectorAll('.quality-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    const quality = this.getAttribute('data-quality');
+                    const qualityLevels = player.qualityLevels();
+                    
+                    // Update UI
+                    document.querySelectorAll('.quality-option').forEach(opt => 
+                        opt.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    if (quality === 'auto') {
+                        player.qualityLevels().auto();
+                    } else {
+                        const index = parseInt(quality);
+                        if (!isNaN(index) && index < qualityLevels.length) {
+                            player.qualityLevels().selectedIndex_ = index;
+                            player.qualityLevels().trigger('change');
+                        }
+                    }
+                    
+                    qualityMenu.classList.remove('visible');
+                });
+            });
+            
+            // Hide menu when clicking elsewhere
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.quality-selector')) {
+                    qualityMenu.classList.remove('visible');
+                }
+            });
+        }
+
+        // Play from direct URL
+        document.getElementById('playUrlBtn').addEventListener('click', function() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (url) {
+                // Basic URL validation
+                if (url.startsWith('http://') || url.startsWith('https://')) {
+                    playChannel(url);
+                } else {
+                    alert('Please enter a valid URL starting with http:// or https://');
+                }
+            }
+        });
+
+        // Also allow pressing Enter in the URL input
+        document.getElementById('urlInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('playUrlBtn').click();
+            }
+        });
+
+        // Control buttons
+        document.getElementById('playBtn').addEventListener('click', () => {
+            player.play();
+            document.getElementById('autoplayMessage').style.display = 'none';
+        });
+        
+        document.getElementById('pauseBtn').addEventListener('click', () => player.pause());
+        document.getElementById('stopBtn').addEventListener('click', () => {
+            player.pause();
+            player.currentTime(0);
+        });
+
+        // Fullscreen button
+        document.getElementById('fullscreenBtn').addEventListener('click', function() {
+            const container = document.getElementById('playerContainer');
+            
+            // Try different fullscreen methods
+            if (container.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            } else if (container.mozRequestFullScreen) {
+                container.mozRequestFullScreen();
+            } else if (container.msRequestFullscreen) {
+                container.msRequestFullscreen();
+            } else {
+                // Fallback for Google Sites
+                alert('Fullscreen may not work in this environment. Try opening in a new tab.');
+            }
+        });
+
+        // Volume control with enhanced UI
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeValue = document.getElementById('volumeValue');
+        const muteBtn = document.getElementById('muteBtn');
+        
+        // Initialize volume
+        player.volume(1);
+        
+        // Update volume when slider changes
+        volumeSlider.addEventListener('input', function() {
+            const value = parseFloat(this.value);
+            player.volume(value);
+            volumeValue.textContent = Math.round(value * 100) + '%';
+            
+            // Update mute button icon
+            const icon = muteBtn.querySelector('.material-icons');
+            if (value === 0) {
+                icon.textContent = 'volume_off';
+            } else if (value < 0.5) {
+                icon.textContent = 'volume_down';
+            } else {
+                icon.textContent = 'volume_up';
+            }
+        });
+        
+        // Mute/unmute button
+        let isMuted = false;
+        let previousVolume = 1;
+        muteBtn.addEventListener('click', function() {
+            const icon = this.querySelector('.material-icons');
+            if (isMuted) {
+                // Unmute
+                player.volume(previousVolume);
+                volumeSlider.value = previousVolume;
+                volumeValue.textContent = Math.round(previousVolume * 100) + '%';
+                icon.textContent = previousVolume < 0.5 ? 'volume_down' : 'volume_up';
+                isMuted = false;
+            } else {
+                // Mute
+                previousVolume = player.volume();
+                player.volume(0);
+                volumeSlider.value = 0;
+                volumeValue.textContent = '0%';
+                icon.textContent = 'volume_off';
+                isMuted = true;
+            }
+        });
+        
+        // Update slider when player volume changes
+        player.on('volumechange', function() {
+            const currentVolume = player.volume();
+            volumeSlider.value = currentVolume;
+            volumeValue.textContent = Math.round(currentVolume * 100) + '%';
+        });
+
+        // Load all channels button
+        document.getElementById('loadAllBtn').addEventListener('click', function() {
+            document.getElementById('loading').style.display = 'block';
+            
+            // Main IPTV index URL
+            const playlistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
+            
+            fetch(playlistUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.text();
+                })
+                .then(content => {
+                    parsePlaylist(content);
+                    filterChannels();
+                    populateChannelList();
+                    document.getElementById('loading').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error loading playlist:', error);
+                    alert('Failed to load playlist. Please check your connection.');
+                    document.getElementById('loading').style.display = 'none';
+                });
+        });
+
+        // Load all channels button 2
+        document.getElementById('loadAllBtn2').addEventListener('click', function() {
+            document.getElementById('loading').style.display = 'block';
+            
+            // Second playlist URL
+            const playlistUrl = 'https://raw.githubusercontent.com/ipstreet312/freeiptv/master/all.m3u';
+            
+            fetch(playlistUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.text();
+                })
+                .then(content => {
+                    parsePlaylist(content);
+                    filterChannels();
+                    populateChannelList();
+                    document.getElementById('loading').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error loading second playlist:', error);
+                    alert('Failed to load second playlist. Please check your connection.');
+                    document.getElementById('loading').style.display = 'none';
+                });
+        });
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function() {
+            filterChannels();
+            populateChannelList();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            player.width(window.innerWidth - 320);
+            player.height(window.innerHeight);
+        });
+
+        // Try to play on any user interaction (click anywhere)
+        document.addEventListener('click', function() {
+            if (player && player.paused()) {
+                player.play().catch(() => {
+                    // Ignore errors
+                });
+                document.getElementById('autoplayMessage').style.display = 'none';
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>
